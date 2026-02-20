@@ -1,0 +1,9 @@
+{
+  "plugins": [
+    {
+      "name": "generate-claude-md",
+      "description": "Iteratively generates and refines CLAUDE.md files using the Ralph loop — invents dev tasks, plans them, discovers missing context, and refines the CLAUDE.md.",
+      "source": "./"
+    }
+  ]
+}
