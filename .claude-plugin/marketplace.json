@@ -1,8 +1,17 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "setup-claude-md",
+  "owner": {
+    "name": "gonzaloetjo"
+  },
+  "metadata": {
+    "description": "CLAUDE.md generation and refinement tools",
+    "version": "1.0.0"
+  },
   "plugins": [
     {
-      "name": "generate-claude-md",
-      "description": "Iteratively generates and refines CLAUDE.md files using the Ralph loop — invents dev tasks, plans them, discovers missing context, and refines the CLAUDE.md.",
+      "name": "setup-claude-md",
+      "description": "Iteratively generates and refines CLAUDE.md files using agent-based stress-test refinement. Spawns fresh agents per iteration to stress-test documentation from different development angles.",
       "source": "./"
     }
   ]

@@ -1,33 +1,24 @@
 ---
 name: generate
 description: >
-  Iteratively generates and refines a CLAUDE.md file for a repository using the Ralph loop.
-  Invents random dev tasks, plans them (without executing), discovers missing context,
-  and feeds learnings back into the CLAUDE.md. Run /generate-claude-md:configure first to set options.
+  Iteratively generates and refines a CLAUDE.md file using iterative stress-test refinement
+  with sequential agents. Spawns a fresh agent for each iteration — each gets a clean context window.
+  Run /setup-claude-md:configure first to set options.
 argument-hint: "[iterations=5]"
-disable-model-invocation: true
-allowed-tools:
-  - Read
-  - Glob
-  - Grep
-  - Bash
-  - Write
-  - Edit
-  - Task
-  - AskUserQuestion
+tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion
 ---
 
-# Generate CLAUDE.md — The Ralph Loop
+# Generate CLAUDE.md — Iterative Stress-Test Refinement
 
-You are a CLAUDE.md generator. You iteratively build a high-quality CLAUDE.md by inventing realistic development tasks, planning them against the current CLAUDE.md, discovering what information is missing, and feeding those learnings back in. Each iteration stress-tests the CLAUDE.md from a different angle.
+You are the orchestrator for CLAUDE.md generation. You coordinate iterative refinement by spawning a fresh agent for each iteration. Each agent invents a realistic development task, plans it against the current CLAUDE.md, discovers what information is missing, and feeds those learnings back in.
 
-**CRITICAL: You NEVER execute the invented tasks. You only PLAN them to discover what context is missing.**
+**You never do iteration work yourself.** You handle setup, repo scanning, agent spawning, interaction gates, and the final summary. The agents do the analytical work.
 
 ---
 
 ## Phase 0: Setup
 
-1. **Parse arguments.** Check `$ARGUMENTS` for an iteration count override (e.g., `/generate-claude-md:generate 3`). If not provided, fall back to config, then default to 5.
+1. **Parse arguments.** Check `$ARGUMENTS` for an iteration count override (e.g., `/setup-claude-md:generate 3`). If not provided, fall back to config, then default to 5.
 
 2. **Load config.** Use `Glob` to check for `.claude-md-config.json` in the project root. If found, `Read` it and extract settings:
    - `iterations` (default: 5)
@@ -36,9 +27,15 @@ You are a CLAUDE.md generator. You iteratively build a high-quality CLAUDE.md by
    - `max_lines` (default: 150)
    - `generate_rules` (default: false)
 
-3. **Check for existing CLAUDE.md.** Use `Glob` to find `CLAUDE.md` in the project root. If it exists, `Read` it — this is your starting point. You'll refine it rather than replace it.
+3. **Check for resume state.** Use `Glob` to check for `.claude-md-generator-state.json` in the project root. If found:
+   - `Read` it and extract the state (phase, completed_iterations, config, repo_summary, archetypes_used)
+   - Use `AskUserQuestion` to ask: "Found state from a previous run ({completed_iterations}/{total_iterations} iterations completed). Resume from where it left off, or start fresh?" Options: "Resume", "Start fresh"
+   - If "Resume": skip to Phase 2–N, starting from iteration `completed_iterations + 1`, using the saved config and repo_summary
+   - If "Start fresh": delete the state file and logs directory, continue to Phase 1
 
-4. **Load quality standards.** `Read` the file `references/claude-md-standards.md` (relative to this skill file). Keep these criteria in mind throughout.
+4. **Check for existing CLAUDE.md.** Use `Glob` to find `CLAUDE.md` in the project root. If it exists, `Read` it — this is your starting point. You'll refine it rather than replace it.
+
+5. **Load quality standards.** `Read` the file `references/claude-md-standards.md` (relative to this skill file). Keep these criteria in mind throughout.
 
 ---
 
@@ -72,12 +69,12 @@ From the files found, identify:
 - Scripts that aren't obvious from their name
 
 ### Step 1.4 — Read Existing Documentation
-`Read` README.md, CONTRIBUTING.md, and any existing CLAUDE.md. Extract information relevant to developers working in the codebase.
+`Read` README.md, CONTRIBUTING.md, and any existing CLAUDE.md. Extract information relevant to developers working in the codebase. Note whether these files contain content worth referencing via `@README.md` or `@CONTRIBUTING.md` imports rather than duplicating in the generated CLAUDE.md.
 
 ### Step 1.5 — Architectural Analysis
 Use `Glob` and `Read` to understand:
 - Monorepo vs single package
-- Top-level directory roles (use `Bash` with `ls` only if needed)
+- Top-level directory roles (prefer `Glob` patterns; use `Bash` with `ls` only as a fallback)
 - Module boundaries and how they communicate
 - Entry points (main files, route definitions, CLI entry)
 - Shared utilities and where they live
@@ -95,132 +92,132 @@ Possible sections (include only if you have substantive content):
 
 Apply the quality standards from `references/claude-md-standards.md` as you write.
 
-### Step 1.7 — Interaction Gate
+If the project is a monorepo with packages that use different tech stacks or conventions, generate sub-directory CLAUDE.md files (e.g., `packages/frontend/CLAUDE.md`) for packages whose conventions differ significantly from the root. Keep the root CLAUDE.md for shared conventions only. Claude automatically loads sub-directory CLAUDE.md files on demand when working in those directories.
+
+### Step 1.7 — Write State File
+Compose a repo summary string (e.g., "TypeScript/React project using Vite, pnpm, Vitest. Monorepo: src/, tests/, docs/.") and write the initial state file:
+
+```json
+{
+  "phase": "iterating",
+  "total_iterations": <iterations>,
+  "completed_iterations": 0,
+  "archetypes_used": [],
+  "config": {
+    "interaction_mode": "<interaction_mode>",
+    "focus_areas": "<focus_areas>",
+    "max_lines": <max_lines>,
+    "generate_rules": <generate_rules>
+  },
+  "repo_summary": "<repo_summary>"
+}
+```
+
+Write this to `.claude-md-generator-state.json` in the project root. Also create the `.claude-md-generator-logs/` directory using `Bash` with `mkdir -p`.
+
+### Step 1.8 — Interaction Gate
 Check the `interaction_mode` setting:
 - If `confirm-base` or `confirm-each`: Present the base CLAUDE.md to the user using `AskUserQuestion`. Ask: "Here's the initial CLAUDE.md. Should I proceed with iterative refinement, or do you want to edit anything first?" Provide options: "Looks good, proceed", "I have feedback" (let them type).
 - If `autonomous`: Continue without stopping.
 
 ---
 
-## Phase 2–N: The Ralph Loop
+## Phase 2–N: The Iteration Loop
 
-Execute this loop for each iteration `i` from 1 to `iterations`.
+For each iteration `i` from 1 to `iterations` (or from `completed_iterations + 1` if resuming):
 
-Announce each iteration: "**Iteration {i}/{total} — {archetype_name}**"
+Announce: "**Iteration {i}/{total} — {archetype_name}**"
 
-### Step A — Invent a Development Task
+### Step 2.1 — Determine Archetype
+Select archetype number `((i - 1) % 10) + 1` from the archetypes list. If the repo has fewer than 5 source files, skip archetypes 8, 9, 10 and use `((i - 1) % 7) + 1`.
 
-1. `Read` the file `references/task-archetypes.md` (relative to this skill file) if you haven't already cached it.
-2. Select archetype number `((i - 1) % 10) + 1` from the list. If the repo has fewer than 5 source files, skip archetypes 8, 9, 10 and use `((i - 1) % 7) + 1`.
-3. Generate a specific, concrete task using the archetype template. The task MUST:
-   - Reference real files and modules discovered in Phase 1
-   - Be 2–3 sentences
-   - Be specific enough to plan step-by-step
-   - Match the complexity escalation: iterations 1–2 single-file, 3–4 multi-file, 5+ cross-cutting
+Look up the archetype name and template text from `references/task-archetypes.md`.
 
-Output the task clearly:
-> **Invented Task:** [task description]
+### Step 2.2 — Determine Complexity Guidance
+- Iterations 1–2: "Single-module scope. Task touches 1–2 files."
+- Iterations 3–4 (or 3–5): "Multi-file scope. Task spans 3–5 files across 2+ directories."
+- Iterations 5+ (or 6+): "Cross-cutting scope. Task affects a subsystem or requires coordinated changes."
 
-### Step B — Plan the Task (DO NOT EXECUTE)
+### Step 2.3 — Construct Agent Prompt
+`Read` the file `references/iteration-prompt.md` (relative to this skill file). Fill in all `{placeholder}` values:
 
-Think through the implementation step by step. For each step, note what information you needed:
+- `{iteration}` — current iteration number
+- `{total}` — total iterations
+- `{archetype_name}` — name from Step 2.1 (e.g., "Bug Fix (Low Complexity)")
+- `{archetype_template}` — template and example text from the archetypes file for this archetype
+- `{complexity_guidance}` — from Step 2.2
+- `{claude_md_path}` — absolute path to the project's CLAUDE.md
+- `{standards_path}` — absolute path to `references/claude-md-standards.md`
+- `{archetypes_path}` — absolute path to `references/task-archetypes.md`
+- `{log_path}` — absolute path to `.claude-md-generator-logs/iteration-{i}.md`
+- `{focus_areas}` — from config
+- `{max_lines}` — from config
+- `{generate_rules}` — from config
+- `{repo_summary}` — from state file or Phase 1
 
-1. **Which files to modify?** — List specific file paths. If unsure where something goes, that's a gap.
-2. **Which functions/classes to change?** — If you need to guess at the interface, that's a gap.
-3. **What commands to run?** — Build, test, lint, type-check. If you're unsure of exact commands, that's a gap.
-4. **What conventions to follow?** — Naming, patterns, error handling, logging. If you'd guess, that's a gap.
-5. **What tests to write?** — Where do test files go? What framework? What patterns? Gaps if unsure.
-6. **What could go wrong?** — Side effects, breaking changes, env requirements. Note assumptions.
-
-**Keep a running frustration log** — every time you have to guess, assume, or feel uncertain, write it down:
+### Step 2.4 — Spawn Iteration Agent
+Spawn the agent using the `Task` tool:
 ```
-Frustration log:
-- Wasn't sure if tests go in __tests__/ or alongside source files
-- Don't know the exact test command for a single file
-- Unclear whether this project uses exceptions or Result types for errors
-- ...
+Task(
+  subagent_type: "general-purpose",
+  description: "Refinement iteration {i}",
+  prompt: <the constructed prompt from Step 2.3>
+)
 ```
 
-### Step C — Extract Learnings
+### Step 2.5 — Post-Iteration Bookkeeping
+After the agent completes:
+1. `Read` the iteration log at `.claude-md-generator-logs/iteration-{i}.md`
+2. Update the state file: increment `completed_iterations`, append the archetype name to `archetypes_used`
+3. Write the updated state file
 
-Review your frustration log. For each gap, categorize it:
-
-| Category | Examples |
-|----------|----------|
-| **Commands** | Build/test/lint commands not documented |
-| **Architecture** | Module boundaries, data flow, design decisions |
-| **Conventions** | Naming, file placement, patterns, error handling |
-| **Testing** | Test location, framework, patterns, coverage expectations |
-| **Gotchas** | Non-obvious constraints, env vars, platform issues |
-| **Workflow** | PR process, branch naming, CI/CD quirks |
-
-Rate each learning:
-- **Critical** — Not knowing this would cause Claude to produce broken code or fail a CI check
-- **Helpful** — Not knowing this would cause Claude to produce working but non-idiomatic code
-
-**Drop** anything Claude could figure out just by reading the source code. If the answer is in a file Claude would naturally open, it doesn't belong in CLAUDE.md.
-
-If `focus_areas` is not `all`, only retain learnings in the configured focus categories.
-
-### Step D — Update CLAUDE.md
-
-1. **Add learnings** to the appropriate sections of the current CLAUDE.md. Create new sections only if no existing section fits.
-
-2. **Apply the pruning pass** (from `references/claude-md-standards.md`):
-   - Remove anything Claude would know from reading the code
-   - Remove vague or aspirational statements
-   - Merge duplicate or overlapping entries
-   - Apply the "removal test" to each line: if removing it wouldn't cause a concrete mistake, remove it
-
-3. **Check length.** If the CLAUDE.md exceeds `max_lines`:
-   - First, prune more aggressively (remove "helpful" items, keep only "critical")
-   - If `generate_rules` is enabled and a section exceeds ~15 lines, extract it to `.claude/rules/<topic>.md` and replace the section body with an `@rules/<topic>.md` import line
-
-4. **Write the updated CLAUDE.md** using `Edit` (if updating) or `Write` (if creating).
-
-5. **Interaction gate** — If `interaction_mode` is `confirm-each`:
-   - Show the user: the invented task, the frustration log, and the proposed CLAUDE.md changes
-   - Use `AskUserQuestion`: "Here are the changes from iteration {i}. Accept, modify, or skip?"
-   - Options: "Accept changes", "Skip these changes", "I have feedback"
+### Step 2.6 — Interaction Gate
+If `interaction_mode` is `confirm-each`:
+- Show the user the iteration log (invented task, frustration log, learnings, changes made)
+- Use `AskUserQuestion`: "Here are the changes from iteration {i}. Accept, modify, or skip?" Options: "Accept changes", "Skip these changes", "I have feedback"
+- If "Skip these changes": revert CLAUDE.md to the version before this iteration (re-read the previous version from iteration `i-1`'s log or the original if `i == 1`)
 
 ---
 
-## Phase Final: Validation & Cleanup
+## Phase Final: Review Agent
 
-After all iterations are complete:
+Spawn a final review agent using the `Task` tool:
 
-### Step F.1 — Full Review
-`Read` the complete CLAUDE.md. Review every line.
+```
+Task(
+  subagent_type: "general-purpose",
+  description: "Final CLAUDE.md review",
+  prompt: <final review prompt below>
+)
+```
 
-### Step F.2 — Final Pruning
-Apply the removal test one last time to every line:
-> "If I deleted this line, would Claude make a concrete mistake on a real development task?"
-- Clear yes → keep
-- Anything else → delete
+The final review prompt (construct inline):
 
-### Step F.3 — Format Check
-Verify consistent formatting:
-- `##` headers for sections
-- Bullet lists for items within sections
-- Fenced code blocks for all commands
-- No trailing whitespace or double blank lines
-- Consistent indentation
+```
+You are a CLAUDE.md reviewer. Read the CLAUDE.md at {claude_md_path} and perform a final quality pass.
 
-### Step F.4 — Command Verification
-Pick 1–2 documented commands (e.g., test, lint) and run them via `Bash` to verify they work. If a command fails, fix or annotate it in the CLAUDE.md.
+Read the quality standards at {standards_path}.
 
-### Step F.5 — Write Final Version
-`Write` the final CLAUDE.md.
+1. Apply the removal test to every line: "If I deleted this line, would Claude make a concrete mistake on a real development task?" Remove anything that fails.
+2. Verify formatting: ## headers for sections, bullet lists, fenced code blocks for commands, no trailing whitespace or double blank lines.
+3. Spot-check 1–2 documented commands by running them via Bash. If a command fails, fix or annotate it.
+4. Write the final CLAUDE.md to {claude_md_path}.
+```
 
-### Step F.6 — Summary
-Present a summary to the user:
+---
+
+## Phase Cleanup
+
+1. Delete `.claude-md-generator-state.json` using `Bash` with `rm`.
+2. Delete `.claude-md-generator-logs/` directory using `Bash` with `rm -rf`.
+3. Present the summary:
 
 ```
 CLAUDE.md generation complete.
 
 Iterations run:    {count}
 Archetypes used:   {list of archetype names}
-Sections:          {list of section names}
+Sections:          {list of section names from final CLAUDE.md}
 Final line count:  {count}
 ```
 
@@ -231,12 +228,14 @@ Generated rule files:
 - .claude/rules/{topic2}.md
 ```
 
+4. **Show the final CLAUDE.md content** — `Read` the final CLAUDE.md and display it to the user so they can see exactly what was generated without having to open the file themselves.
+
 ---
 
 ## Important Reminders
 
-- **NEVER execute invented tasks.** You only plan them to find gaps.
+- **NEVER execute invented tasks.** Agents only plan them to find gaps.
 - **NEVER include information Claude can get from reading code.** The CLAUDE.md is for things that AREN'T in the code.
 - **Be ruthless about pruning.** A short, dense CLAUDE.md is far more valuable than a long, padded one.
-- **Each iteration should discover NEW information.** If an iteration finds nothing new, that's a signal you may have enough iterations.
-- **Reference real files.** Every task you invent must reference actual files and modules in the repository.
+- **Each iteration should discover NEW information.** If an agent finds nothing new, that's a signal you may have enough iterations.
+- **Reference real files.** Every task agents invent must reference actual files and modules in the repository.

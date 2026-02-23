@@ -1,6 +1,6 @@
 # Development Task Archetypes
 
-Use these archetypes to generate realistic development tasks during each Ralph loop iteration. Each iteration MUST use a different archetype.
+Use these archetypes to generate realistic development tasks during each iteration. Each iteration MUST use a different archetype.
 
 ## The 10 Archetypes
 

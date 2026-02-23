@@ -1,23 +1,23 @@
 {
-  "name": "generate-claude-md",
+  "name": "setup-claude-md",
   "version": "1.0.0",
-  "description": "Iteratively generates and refines CLAUDE.md files using the Ralph loop — invents dev tasks, plans them, discovers missing context, and refines the CLAUDE.md.",
+  "description": "Iteratively generates and refines CLAUDE.md files using sequential agents with fresh context windows — invents dev tasks, plans them, discovers missing context, and refines the CLAUDE.md.",
   "author": {
     "name": "gonzaloetjo",
     "url": "https://github.com/gonzaloetjo"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gonzaloetjo/generate-claude-md"
+    "url": "https://github.com/gonzaloetjo/setup-claude-md"
   },
   "license": "MIT",
-  "homepage": "https://github.com/gonzaloetjo/generate-claude-md",
+  "homepage": "https://github.com/gonzaloetjo/setup-claude-md",
   "keywords": [
     "claude-code",
     "plugin",
     "claude-md",
     "CLAUDE.md",
     "documentation",
-    "ralph-loop"
+    "iterative-generation"
   ]
 }

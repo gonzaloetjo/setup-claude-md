@@ -2,12 +2,13 @@
 
 ## Quality Criteria
 
-- **Target length**: 50–150 lines. Hard cap: 300 lines.
+- **Target length**: 50–150 lines. Hard cap: 300 lines. (Anthropic's official ceiling is ~500 lines, but CLAUDE.md loads as user messages — bloated files cause instructions to get lost. Aim for the range where every line earns its place.)
 - **Every line must be actionable** — something Claude should DO or AVOID when working in this repo.
 - **Nothing Claude can infer from reading code.** If a convention is enforced by a linter, a type system, or is obvious from file structure, don't document it.
 - **Use specific language.** Write "Use ES modules (`import`/`export`), never CommonJS `require()`" — not "follow modern patterns."
 - **Reserve NEVER, MUST, IMPORTANT** for rules Claude actively tends to violate. Overuse dilutes their impact.
 - **Commands must be exact.** Include flags, env vars, and working directory if non-obvious. Wrap in code blocks.
+- **Tag deterministic rules with `[deterministic]`.** If a rule describes an action that must happen every time with zero exceptions (e.g., "always run lint after editing"), append `[deterministic]` to the line. These are candidates for conversion to Claude Code hooks.
 - **No aspirational content.** Document what IS, not what SHOULD BE. If the codebase doesn't follow a pattern consistently, don't claim it does.
 
 ## Section Templates
@@ -48,16 +49,21 @@ Format as imperative warnings:
 - "IMPORTANT: X requires Y first"
 - "After changing X, you MUST also update Y"
 
+If the project has critical context that must survive long-session compaction, add as the last Gotchas item:
+> When compacting, always preserve [specific critical context].
+Use sparingly — only when losing this context would cause real mistakes.
+
 ## Anti-Patterns — Do NOT Include
 
 - **File-by-file codebase descriptions.** Claude can read the file tree.
-- **Inline code snippets.** Reference `file:line` instead of pasting code.
+- **Inline code snippets or duplicated docs.** Use `@path/to/file` imports to reference existing documentation (README.md, CONTRIBUTING.md) rather than duplicating content. Use `file:line` references for specific code locations. Never paste code verbatim.
 - **Generic wisdom.** "Write clean code", "follow best practices", "keep functions small" — useless.
 - **Detailed API documentation.** Link to docs or reference the source file.
 - **Over-specified workflows.** Don't write a 20-step PR checklist. Summarize what's non-obvious.
 - **Dependency lists.** Claude can read package.json / requirements.txt / go.mod.
 - **Type definitions or interface descriptions.** Claude reads the source.
 - **Obvious directory roles.** Don't document that `src/` contains source code.
+- **Personal or local-only preferences.** Sandbox URLs, personal test data, local machine quirks belong in `CLAUDE.local.md` (auto-gitignored), not in the shared CLAUDE.md.
 
 ## The Pruning Heuristic
 
@@ -76,5 +82,5 @@ Ruthlessly prune. A 50-line CLAUDE.md where every line matters is better than a 
 When the CLAUDE.md exceeds `max_lines`:
 1. First, prune using the heuristic above
 2. Merge entries that convey the same information
-3. If still over, move the longest section to `.claude/rules/<topic>.md` and add an `@rules/<topic>.md` import (only if `generate_rules` is enabled)
+3. If still over, move the longest section to `.claude/rules/<topic>.md` and add an `@rules/<topic>.md` import (only if `generate_rules` is enabled). When creating rules files, add YAML frontmatter with `paths:` to scope them to relevant file patterns (e.g., testing conventions → `paths: ["**/*.test.*"]`). Also consider whether content already exists in README.md or CONTRIBUTING.md — use `@README.md` imports rather than duplicating.
 4. As a last resort, remove "helpful" items and keep only "critical" ones

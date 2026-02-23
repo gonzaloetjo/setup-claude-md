@@ -1,13 +1,7 @@
 ---
 name: configure
 description: Configure settings for the CLAUDE.md generator — iteration count, interaction mode, focus areas, and output preferences.
-disable-model-invocation: true
-allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - AskUserQuestion
-  - Glob
+tools: Read, Write, Edit, AskUserQuestion, Glob
 ---
 
 # Configure CLAUDE.md Generator
@@ -36,7 +30,7 @@ If not found, inform the user you'll create a new config with defaults.
 Use `AskUserQuestion` to walk through each setting. Present all settings in a single question block when possible.
 
 ### Setting: iterations
-- Question: "How many Ralph loop iterations should the generator run?"
+- Question: "How many iterations should the generator run?"
 - Options: `3` (Quick scan), `5` (Balanced — recommended), `8` (Thorough), `10` (Exhaustive)
 - Default: `5`
 
@@ -62,7 +56,7 @@ Use `AskUserQuestion` to walk through each setting. Present all settings in a si
 ### Setting: generate_rules
 - Question: "Should the generator also create `.claude/rules/` files for detailed topics?"
 - Options:
-  - `true` — Extract long sections into separate rule files with `@` imports
+  - `true` — Extract long sections into separate `.claude/rules/` files (auto-loaded by Claude Code)
   - `false` (Recommended) — Keep everything in a single CLAUDE.md
 - Default: `false`
 
@@ -94,5 +88,5 @@ CLAUDE.md generator configured:
   Max lines:         {max_lines}
   Generate rules:    {generate_rules}
 
-Run /generate-claude-md:generate to start generating your CLAUDE.md.
+Run /setup-claude-md:generate to start generating your CLAUDE.md.
 ```
