@@ -5,7 +5,7 @@ description: >
   with sequential agents. Spawns a fresh agent for each iteration — each gets a clean context window.
   Run /setup-claude-md:configure first to set options.
 argument-hint: "[iterations=5]"
-tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion
+allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion
 ---
 
 # Generate CLAUDE.md — Iterative Stress-Test Refinement

@@ -6,10 +6,7 @@
     "name": "gonzaloetjo",
     "url": "https://github.com/gonzaloetjo"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/gonzaloetjo/setup-claude-md"
-  },
+  "repository": "https://github.com/gonzaloetjo/setup-claude-md",
   "license": "MIT",
   "homepage": "https://github.com/gonzaloetjo/setup-claude-md",
   "keywords": [
