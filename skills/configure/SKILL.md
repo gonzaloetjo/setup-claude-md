@@ -1,7 +1,7 @@
 ---
 name: configure
 description: Configure settings for the CLAUDE.md generator — iteration count, interaction mode, focus areas, and output preferences.
-tools: Read, Write, Edit, AskUserQuestion, Glob
+allowed-tools: Read, Write, Edit, AskUserQuestion, Glob
 ---
 
 # Configure CLAUDE.md Generator
