@@ -11,11 +11,11 @@ Claude Code's built-in `/init` generates a CLAUDE.md in a single pass — one sc
 Generation runs in three phases. Each phase uses fresh agents with clean context windows, spawned via Claude Code's `Task` tool.
 
 ```
-Phase 1: Repository Scan
+Phase 0: Read existing CLAUDE.md
     │
     ▼
 ┌─────────────────────────────────────────┐
-│  Phase 2–N: Iterative Refinement        │
+│  Phase 1–N: Iterative Refinement        │
 │                                         │
 │  For each iteration:                    │
 │    1. Select archetype                  │
@@ -29,14 +29,14 @@ Phase 1: Repository Scan
 └─────────────────────────────────────────┘
     │
     ▼
-Phase Final: Validation Agent
+Phase 2: Validation Agent
 ```
 
-### Phase 1: Repository Scan
+### Prerequisite: Run `/init` first
 
-The orchestrator scans your repository — config files, build system, test framework, directory structure, existing docs — and generates an initial CLAUDE.md. State is written to `.claude-md-generator-state.json` so interrupted runs can resume.
+This plugin requires a CLAUDE.md to already exist in your project root. Run `/init` to create one, or write it manually. The plugin reads the existing CLAUDE.md, synthesizes a repo summary from its content, and uses that as the starting point for iterative refinement. State is written to `.claude-md-generator-state.json` so interrupted runs can resume.
 
-### Phase 2–N: Iterative Refinement
+### Phase 1–N: Iterative Refinement
 
 Each iteration spawns a fresh `general-purpose` agent that picks a task archetype, invents a specific task referencing real files in your repo, plans it step-by-step without executing, and records every point where it had to guess. Those gaps become CLAUDE.md updates.
 
@@ -57,7 +57,7 @@ Each iteration spawns a fresh `general-purpose` agent that picks a task archetyp
 
 Task complexity escalates across iterations: early iterations target single files, middle iterations span multiple directories, later iterations tackle cross-cutting concerns.
 
-### Phase Final: Validation Agent
+### Phase 2: Validation Agent
 
 A final agent reads the complete CLAUDE.md with fresh eyes. It applies the removal test to every line ("if deleted, would Claude make a concrete mistake?"), verifies formatting, and spot-checks documented commands by running them.
 
@@ -87,7 +87,13 @@ claude --plugin-dir ./setup-claude-md
 
 ## Quick Start
 
-**1. Configure (optional):**
+**1. Create initial CLAUDE.md (if you don't have one):**
+
+```
+/init
+```
+
+**2. Configure (optional):**
 
 ```
 /setup-claude-md:configure
@@ -95,7 +101,7 @@ claude --plugin-dir ./setup-claude-md
 
 Interactive walkthrough for iteration count, interaction mode, focus areas, max line count, and rule file generation.
 
-**2. Generate:**
+**3. Generate:**
 
 ```
 /setup-claude-md:generate
@@ -122,7 +128,7 @@ Settings are stored in `.claude-md-config.json` in your project root. Run `/setu
 ## Interaction Modes
 
 - **`autonomous`** — Runs all iterations without stopping. Best for repos you know well where you trust the output.
-- **`confirm-base`** — Pauses after the initial CLAUDE.md for your review, then runs all iterations autonomously. Good balance of control and speed.
+- **`confirm-base`** — Shows the existing CLAUDE.md and pauses for your review before starting iterations, then runs all iterations autonomously. Good balance of control and speed.
 - **`confirm-each`** — Pauses after every iteration showing the invented task, frustration log, learnings, and proposed changes. You can accept, skip, or provide feedback. Maximum control.
 
 ## When to Use
@@ -188,6 +194,7 @@ setup-claude-md/
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI with plugin support
 - A codebase with source files (the task archetypes assume working code)
+- An existing CLAUDE.md in the project root (run `/init` to create one)
 
 ## License
 

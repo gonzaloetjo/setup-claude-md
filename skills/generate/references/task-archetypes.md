@@ -67,7 +67,7 @@ Use these archetypes to generate realistic development tasks during each iterati
 - **Iterations 6+:** Cross-cutting scope. Task affects a subsystem or requires coordinated changes.
 
 ### Task Specificity
-- Tasks MUST reference real files, real modules, and real components discovered during Phase 1
+- Tasks MUST reference real files, real modules, and real components from the existing CLAUDE.md and repo
 - Task description: exactly 2–3 sentences
 - Include enough detail to plan concretely — name the files, the functions, the expected behavior
 - Avoid hypothetical or generic tasks. If the repo has no API, don't generate an API task
